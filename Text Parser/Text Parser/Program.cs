@@ -176,10 +176,8 @@ namespace Text_Parser
             var count = 0;
             foreach (var item in items)
             {
-                if (message.Contains(item, StringComparison.OrdinalIgnoreCase))
-                {
-                    count++;
-                }
+                var removed = message.Replace(item, string.Empty, StringComparison.OrdinalIgnoreCase);
+                count += (message.Length - removed.Length) / item.Length;
             }
             return count;
         }
