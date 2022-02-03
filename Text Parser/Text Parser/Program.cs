@@ -11,7 +11,7 @@ namespace Text_Parser
     {
         //messages/day, specific emojis/day, words/day
         static Dictionary<string, string> _emojiLookup = new Dictionary<string, string>();
-        static ConcurrentQueue<LineDataModel> _messageParseQueue = new ConcurrentQueue<LineDataModel>();
+        static ConcurrentQueue<MessagePayload> _messagePayloadQueue = new ConcurrentQueue<MessagePayload>();
         static Dictionary<DateTime, (DayDataModel sean, DayDataModel yui)> _results = new Dictionary<DateTime, (DayDataModel sean, DayDataModel yui)>();
         static bool _finishedReading = false;
 
@@ -36,9 +36,8 @@ namespace Text_Parser
             var currentDate = default(DateTime);
             using (var sr = new StreamReader(inputFilePath))
             {
-
-                var parseTask = StartParsing();
-                var lineModel = default(LineDataModel);
+                var analyzeTask = AnalyzePayloads();
+                var messagePayload = default(MessagePayload);
                 while (!sr.EndOfStream)
                 {
                     var line = sr.ReadLine();
@@ -48,13 +47,13 @@ namespace Text_Parser
                     if (parts.Length == 3 && TimeSpan.TryParse(parts[0], out var timestamp))
                     {
                         var messageTimestamp = currentDate.Date.Add(timestamp);
-                        lineModel = new LineDataModel();
-                        lineModel.Timestamp = messageTimestamp;
-                        lineModel.Sender = parts[1];
-                        lineModel.Message = lineModel.Message += parts[2];
+                        messagePayload = new MessagePayload();
+                        messagePayload.Timestamp = messageTimestamp;
+                        messagePayload.Sender = parts[1];
+                        messagePayload.Message = messagePayload.Message += parts[2];
 
-                        // Add message to Parse queue. It will be handled on a separate thread so the main thread can continue parsing the file
-                        _messageParseQueue.Enqueue(lineModel);
+                        // Add message to payload processing queue. It will be handled on a separate thread so the main thread can continue parsing the file
+                        _messagePayloadQueue.Enqueue(messagePayload);
                     }
                     //Could be in 2nd + line of message or new day
                     else
@@ -76,7 +75,7 @@ namespace Text_Parser
                         //Middle of message
                         else
                         {
-                            lineModel.Message += line;
+                            messagePayload.Message += line;
                         }
                     }
                 }
@@ -84,7 +83,7 @@ namespace Text_Parser
                 _finishedReading = true;
 
                 // Wait for the data collection thread to finish
-                parseTask.GetAwaiter().GetResult();
+                analyzeTask.GetAwaiter().GetResult();
 
                 var output = CreateDataTable();
                 foreach (var day in _results)
@@ -110,13 +109,14 @@ namespace Text_Parser
             }
         }
 
-        static Task StartParsing()
+        static Task AnalyzePayloads()
         {
             return Task.Run(() =>
             {
                 while (true)
                 {
-                    var didDequeue = _messageParseQueue.TryDequeue(out var currentMessage);
+                    var didDequeue = _messagePayloadQueue.TryDequeue(out var currentMessage);
+                    // If no message was retrieved from the queue and we have finished reading the file, consider the task completed
                     if (!didDequeue && _finishedReading)
                     {
                         break;

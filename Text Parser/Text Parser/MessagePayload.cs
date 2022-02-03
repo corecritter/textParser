@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Text_Parser
 {
-    public class LineDataModel
+    public class MessagePayload
     {
         public DateTime Timestamp { get; set; }
         public string Sender { get; set; }
