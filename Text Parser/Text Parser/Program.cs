@@ -54,8 +54,6 @@ namespace Text_Parser
                             lineModel.Message += line;
                         }
                     }
-
-                    ParseLine(line);
                 }
 
                 _finishedReading = true;
@@ -79,10 +77,6 @@ namespace Text_Parser
                     }
                 }
             });
-        }
-
-        static void ParseLine(string line)
-        {
         }
 
         static void InitEmojiLookup()
