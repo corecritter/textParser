@@ -65,15 +65,17 @@ namespace Text_Parser
         {
             return Task.Run(() =>
             {
-                while (!_finishedReading)
+                while (true)
                 {
-                    if (_messageParseQueue.TryDequeue(out var currentMessage))
+                    if (!_messageParseQueue.TryDequeue(out var currentMessage) && _finishedReading)
                     {
-                        // Need to detect emojis and words and shit
-                        var chars = currentMessage.Message.ToCharArray();
-                        foreach (var c in chars)
-                        {
-                        }
+                        break;
+                    }
+
+                    // Need to detect emojis and words and shit
+                    var chars = currentMessage.Message.ToCharArray();
+                    foreach (var c in chars)
+                    {
                     }
                 }
             });
