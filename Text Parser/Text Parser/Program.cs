@@ -176,7 +176,7 @@ namespace Text_Parser
             var count = 0;
             foreach (var item in items)
             {
-                if (message.Contains(item))
+                if (message.Contains(item, StringComparison.OrdinalIgnoreCase))
                 {
                     count++;
                 }
