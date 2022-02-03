@@ -1,27 +1,47 @@
 ﻿using System;
+using System.Data;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Text_Parser
 {
-    class Program
+    public static class Program
     {
         //messages/day, specific emojis/day, words/day
         static Dictionary<string, string> _emojiLookup = new Dictionary<string, string>();
         static ConcurrentQueue<LineDataModel> _messageParseQueue = new ConcurrentQueue<LineDataModel>();
         static bool _finishedReading = false;
+        static int heartCountSean = 0;
+        static int daisukiCountSean = 0;
+        static int pictureCountSean = 0;
+        static int messageCountSean = 0;
+        static int heartCountYui = 0;
+        static int daisukiCountYui = 0;
+        static int pictureCountYui = 0;
+        static int messageCountYui = 0;
+        static int thumbCountYui = 0;
+        static int laughCountYui = 0;
+        static int phoneCount = 0;
 
         static void Main(string[] args)
         {
-            var inputFilePath = @"C:\Users\Bobby\Downloads\LINE_.txt";
+
+            DataTable output = new DataTable();
+            output = CreateDataTable();
+            //var inputFilePath = @"C:\Users\Bobby\Downloads\LINE_.txt";
+            var inputFilePath = @"E:\Downloads\LINE_.txt";
             InitEmojiLookup();
+            var x = File.Exists(inputFilePath);
+            string line1 = File.ReadLines(inputFilePath).First();
 
             var currentDate = default(DateTime);
             using (var sr = new StreamReader(inputFilePath))
             {
+
                 var parseTask = StartParsing();
                 var lineModel = default(LineDataModel);
                 while (!sr.EndOfStream)
@@ -32,7 +52,7 @@ namespace Text_Parser
                     //New message Line
                     if (parts.Length == 3 && TimeSpan.TryParse(parts[0], out var timestamp))
                     {
-                        var messageTimestamp = currentDate.Date.Add(timestamp);
+                        var messageTimestamp = currentDate;//.Date.Add(timestamp);
                         lineModel = new LineDataModel();
                         lineModel.Timestamp = messageTimestamp;
                         lineModel.Sender = parts[1];
@@ -43,9 +63,32 @@ namespace Text_Parser
                     else
                     {
                         //Try to extract and parse a date
-                        var date = line.Substring(0, line.Length - 3);
+                        string date;
+                        if (line.Length >= 3)
+                        {
+                            date = line.Substring(0, line.Length - 3);
+                        } else
+                        {
+                            date = line;
+                        }
                         if (DateTime.TryParse(date, out var dt))
                         {
+                            //add the message counts for the day to the table
+                            output.Rows.Add(currentDate, heartCountSean, daisukiCountSean, pictureCountSean, messageCountSean,
+                                heartCountYui, daisukiCountYui, pictureCountYui, messageCountYui, thumbCountYui,
+                                laughCountYui, phoneCount);
+                            //reset counts for next day
+                            heartCountSean = 0;
+                            daisukiCountSean = 0;
+                            pictureCountSean = 0;
+                            messageCountSean = 0;
+                            heartCountYui = 0;
+                            daisukiCountYui = 0;
+                            pictureCountYui = 0;
+                            messageCountYui = 0;
+                            thumbCountYui = 0;
+                            laughCountYui = 0;
+                            phoneCount = 0;
                             currentDate = dt;
                         }
                         //Middle of message
@@ -58,6 +101,8 @@ namespace Text_Parser
 
                 _finishedReading = true;
                 parseTask.GetAwaiter().GetResult();
+
+                ToCSV(output, "E:\\Downloads\\line_output.csv");
             }
         }
 
@@ -71,14 +116,152 @@ namespace Text_Parser
                     {
                         break;
                     }
-
-                    // Need to detect emojis and words and shit
-                    var chars = currentMessage.Message.ToCharArray();
-                    foreach (var c in chars)
+                    if (currentMessage!= null)
                     {
+                        // Need to detect emojis and words and shit
+                        //var chars = currentMessage.Message.ToCharArray();
+                        var chars = currentMessage.Message;
+                        //get counts for sean
+                        if (currentMessage.Sender.Equals("Sean ショーン"))
+                        {
+                            heartCountSean = GetHearts(heartCountSean, chars);
+                            daisukiCountSean = GetDaisuki(daisukiCountSean, chars);
+                            pictureCountSean = GetPictures(pictureCountSean, chars);
+                            messageCountSean = GetMessageCount(messageCountSean);
+                        }
+                        //get counts for yui
+                        if (currentMessage.Sender.Equals("ゆい"))
+                        {
+                            heartCountYui = GetHearts(heartCountYui, chars);
+                            daisukiCountYui = GetDaisuki(daisukiCountYui, chars);
+                            pictureCountYui = GetPictures(pictureCountYui, chars);
+                            messageCountYui = GetMessageCount(messageCountYui);
+                            thumbCountYui = GetThumbs(thumbCountYui, chars);
+                            laughCountYui = GetLaughs(laughCountYui, chars);
+                        }
+                        //get phone counts total
+                        phoneCount = GetPhone(phoneCount, chars);
                     }
+
                 }
             });
+        }
+        static DataTable CreateDataTable()
+        {
+            DataTable output = new DataTable();
+
+            output.Columns.Add("Date",typeof(DateTime));
+
+            output.Columns.Add("SHearts", typeof(int));
+            output.Columns.Add("SDaisuki", typeof(int));
+            output.Columns.Add("SPics", typeof(int));
+            output.Columns.Add("SMessages", typeof(int));
+
+            output.Columns.Add("YHearts", typeof(int));
+            output.Columns.Add("YDaisuki", typeof(int));
+            output.Columns.Add("YPics", typeof(int));
+            output.Columns.Add("YMessages", typeof(int));
+            output.Columns.Add("YThumbs", typeof(int));
+            output.Columns.Add("YLaughs", typeof(int));
+
+            output.Columns.Add("Phone", typeof(int));
+            return output;
+        }
+        static int GetHearts(int heartCount, string message)
+        {
+            if (message.Contains("💙") || message.Contains("💞") 
+                || message.Contains("💞") || message.Contains("💕")
+                || message.Contains("💓") || message.Contains("💗")
+                || message.Contains("❤️") || message.Contains("❣️")
+                || message.Contains("💚") || message.Contains("♥️")
+                || message.Contains("💖"))
+            {
+                heartCount++;
+            }
+            return heartCount;
+        }
+        static int GetDaisuki(int daisukiCount, string message)
+        {
+            if (message.Contains("大好き") || message.Contains("love you")){
+                daisukiCount++;
+            }
+            return daisukiCount;
+        }
+        static int GetPhone(int phoneCount, string message)
+        {
+            if (message.Contains("通話時間"))
+            {
+                phoneCount++;
+            }
+            return phoneCount;
+        }
+        static int GetPictures(int pictureCount, string message)
+        {
+            if (message.Contains("[写真]"))
+            {
+                pictureCount++;
+            }
+            return pictureCount;
+        }
+        static int GetMessageCount(int messageCount)
+        {
+            messageCount++;
+            return messageCount;
+        }
+        static int GetThumbs(int thumbCount, string message)
+        {
+            if (message.Contains("✌️") || message.Contains("👍") || message.Contains("💫"))
+            {
+                thumbCount++;
+            }
+            return thumbCount;
+        }
+        static int GetLaughs(int laughCount, string message)
+        {
+            if (message.Contains("😂"))
+            {
+                laughCount++;
+            }
+            return laughCount;
+        }
+        static void ToCSV(this DataTable dtDataTable, string strFilePath)
+        {
+            StreamWriter sw = new StreamWriter(strFilePath, false);
+            //headers    
+            for (int i = 0; i < dtDataTable.Columns.Count; i++)
+            {
+                sw.Write(dtDataTable.Columns[i]);
+                if (i < dtDataTable.Columns.Count - 1)
+                {
+                    sw.Write(",");
+                }
+            }
+            sw.Write(sw.NewLine);
+            foreach (DataRow dr in dtDataTable.Rows)
+            {
+                for (int i = 0; i < dtDataTable.Columns.Count; i++)
+                {
+                    if (!Convert.IsDBNull(dr[i]))
+                    {
+                        string value = dr[i].ToString();
+                        if (value.Contains(','))
+                        {
+                            value = String.Format("\"{0}\"", value);
+                            sw.Write(value);
+                        }
+                        else
+                        {
+                            sw.Write(dr[i].ToString());
+                        }
+                    }
+                    if (i < dtDataTable.Columns.Count - 1)
+                    {
+                        sw.Write(",");
+                    }
+                }
+                sw.Write(sw.NewLine);
+            }
+            sw.Close();
         }
 
         static void InitEmojiLookup()
